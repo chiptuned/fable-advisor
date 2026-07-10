@@ -99,6 +99,10 @@ touching 3+ files, consult the fable-advisor agent and act on its verdict.
 
 **Why Grok and GPT-5.6 Sol lanes in a Claude plugin?** Vendor diversity. Models from one family share blind spots; an independent implementation from a different lineage catches what same-family review misses — and with Claude as the architect, *every* diff now gets cross-vendor review for free. The architect stays Claude — the lanes are producers, not judges.
 
+## Go deeper
+
+I write [**Attention Heads**](https://attentionheads.substack.com/?utm_source=github&utm_medium=readme&utm_campaign=fable-advisor) — deep, evidence-backed writing on AI, cognition, and agentic engineering. The first **Agentic Engineering Field Notes** issue — how I run this pattern (and the rest of my personal AI infrastructure) day to day — publishes there first. [Subscribe free](https://attentionheads.substack.com/subscribe?utm_source=github&utm_medium=readme&utm_campaign=fable-advisor) to get it when it drops.
+
 ## License
 
 MIT
