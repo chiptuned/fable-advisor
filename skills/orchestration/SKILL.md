@@ -7,15 +7,17 @@ description: Routing doctrine for the architect-as-orchestrator pattern — how 
 
 The session is the architect: it owns requirements, architecture, decomposition, specs, routing, and verification. It should almost never type implementation code. Every implementation task gets routed to the cheapest lane that is adequate for it — escalation is deliberate, per task, never a fixed binding.
 
-## Cost discipline — the prime directive
+## Cost and throughput — the prime directives
 
-The session model is the most expensive lane in the system, on both input and output tokens. The whole economic case for this pattern is keeping its token volume low: spend Fable on judgment, spend Sonnet on volume. Three rules follow.
+The session model is the most expensive lane in the system, on both input and output tokens — and it is also the bottleneck: nothing moves while it types. The economic case for this pattern is keeping its token volume low; the speed case is keeping cheap lanes running while it thinks. Spend Fable on judgment, spend the lanes on volume, and never let the architect be the only thing running. Four rules follow.
 
 **Emit judgment, not volume.** The architect's output is decomposition, specs, routing decisions, verdicts on diffs, and short reports. It does not type implementation code, test bodies, boilerplate, or config files. A code block longer than an interface signature or a few illustrative lines is a spec that hasn't been delegated yet — stop and delegate it. Fixing a lane's bug by hand is the same failure in disguise: send a corrected spec back to the cheap lane instead.
 
 **Keep the context lean.** Everything in the architect's context is re-read at architect prices on every turn. Delegate broad exploration, codebase searches, and log-grepping to a cheap read-only agent and keep only the conclusions; read files yourself only when the decision genuinely depends on the exact code. Don't paste long files, full diffs, or verbose command output into the conversation when a path reference or an excerpt will do.
 
 **Reason once, then hand off.** Do the hard thinking — the architecture, the interface design, the debugging hypothesis — in one pass, capture it in the spec, and let the cheap lane carry it from there. Re-deriving decisions across turns burns the premium twice.
+
+**Dispatch early, never idle.** Wall-clock speed comes from lanes running while the architect works, not from the architect typing faster. The moment a spec is finished, fire its lane and move to the next decision — don't hold the next dispatch hostage to the previous task's verification. Independent specs launch together in one message. An architect working alone while zero lanes run is the slow configuration, whatever it saves in coordination.
 
 What stays with the architect regardless of cost: decomposition, interface design, hypothesis selection when debugging, spec writing, lane routing, and judging verification evidence. Those tokens are what the premium is for — everything else is a candidate for delegation.
 
@@ -28,6 +30,8 @@ What stays with the architect regardless of cost: decomposition, interface desig
 | Judgment | Fable 5 | `fable-advisor` agent | Not an implementation lane. See "Commitment boundaries" below. |
 
 Deciding rule: how much does the outcome depend on judgment the spec can't capture? Little → the default grok lane; you will verify anyway. A lot, and mistakes are costly → race both lanes on the same spec and pick the stronger diff, or keep that piece with the architect.
+
+Don't let task size argue for inline edits. A single small edit is faster by hand, but sessions are made of many — the honest comparison is a batch of inline edits done serially at the bottleneck versus one grok spec running while the architect thinks about the next thing. Batch related small edits into one delegated task; the architect types only when an edit is truly blocking and shorter than its own spec. If the grok lane sits unused for a whole session, that's a routing failure to explain, not a neutral outcome.
 
 Grok vs codex is not a capability ranking — it's a failure-distribution question. Both are non-Anthropic families, so either lane's output gets genuine cross-vendor review from the Claude architect; racing them buys a *third* independent perspective for one extra lane's cost.
 
@@ -49,7 +53,7 @@ A spec you can't finish writing is a signal the decision isn't made yet — that
 
 ## Parallelism
 
-Independent specs (no shared files, no ordering dependency) launch as parallel agents in a single message. Sequential chains and single-file surgery stay serial. For high-stakes work, a pick-the-stronger-diff race — `grok-implementer` and `codex-implementer` on the same spec, architect judges — buys three-vendor confidence for one extra lane's cost.
+Independent specs (no shared files, no ordering dependency) launch as parallel agents in a single message — this is the main throughput lever. Dispatch each lane as soon as its spec is written; verify finished lanes while later ones are still running. Sequential chains and single-file surgery stay serial. For high-stakes work, a pick-the-stronger-diff race — `grok-implementer` and `codex-implementer` on the same spec, architect judges — buys three-vendor confidence for one extra lane's cost.
 
 ## Commitment boundaries
 
