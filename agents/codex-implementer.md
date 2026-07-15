@@ -134,6 +134,33 @@ Flag discipline (non-negotiable):
 
 `--model gpt-5.6-sol` is the current top GPT tier — if the caller's spec names a different codex model, use that instead; the slug is a documented default, not a constant.
 
+### Sandbox denial — fail loud, or fall back only on explicit opt-in
+
+On some hosts (observed on Windows), codex's sandbox setup helper fails to grant
+the workspace write ACE and then caches the failure: every `--sandbox
+workspace-write` run ends with codex reporting the workspace as read-only
+(e.g. *"the workspace is read-only and write approval is disabled"*) and
+`git status` shows no changes. The helper does not retry on its own, so the
+lane stays dead until the host is repaired.
+
+When you see that signature:
+
+1. **If the caller's spec contains the exact line `sandbox-fallback: allowed`**,
+   retry once with the operator's own configured sandbox mode by omitting the
+   `--sandbox` flag entirely (codex then uses `sandbox_mode` from
+   `~/.codex/config.toml`, which the machine owner chose deliberately). Add
+   `SANDBOX: downgraded to user-config (workspace-write denied)` to your
+   report — the downgrade must never be silent.
+2. **Otherwise stop** and return `STATUS: unavailable` with
+   `REASON: sandbox denied writes — workspace-write ACE grant failing on this host`,
+   the exact codex message, and the remediation hints: run codex once from an
+   elevated shell so the setup helper can complete the write-ACE grant, or
+   restart codex background processes / clear the cached state under
+   `~/.codex/.sandbox`.
+
+Never jump straight to `danger-full-access` on a first attempt, and never fall
+back without reporting it.
+
 3. **Verify independently.** On macOS/Linux: read the diff (`git diff` / `git status`), run the spec's verification command yourself, and read codex's final message from `"$FINAL"`. Codex's claim of success is not evidence; your re-run is. **On Windows (read-only reviewer):** there is no diff — codex's deliverable IS the patch in `"$FINAL"`. Sanity-check the patch applies cleanly (`git apply --check`) and report it as a `proposal`; do not apply it yourself unless the caller asked (fix/apply decisions belong upstream — the caller routes it to the grok lane or applies it).
 
 ## What you return
@@ -145,6 +172,7 @@ OBJECTIVE: [restated in one line]
 CHANGES: [file — one-line summary, per file, from the actual diff | on Windows: from codex's proposed patch]
 VERIFIED: [verification command you re-ran — actual output evidence | on Windows: `git apply --check` result for the proposed patch]
 CODEX SAID: [one-line summary of codex's final message, note any disagreement with the diff]
+SANDBOX: [only when downgraded: "downgraded to user-config (workspace-write denied)"]
 GAPS: [spec ambiguities, unfinished items, or "none"]
 ```
 (`STATUS: proposal` = the Windows read-only path — codex returned a reviewed patch for the caller to apply, not a completed write.)
