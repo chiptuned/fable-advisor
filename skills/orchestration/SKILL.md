@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: Routing doctrine for the architect-as-orchestrator pattern — how a session running the smartest model delegates implementation to cheaper cross-vendor lanes to minimize cost. USE WHEN delegating implementation work, choosing between grok-implementer/codex-implementer lanes, writing a spec for a subagent, deciding whether to consult fable-advisor, managing session cost or token spend, or running any multi-task build where the session is the architect.
+description: Routing doctrine for the architect-as-orchestrator pattern — how a session running the smartest model delegates implementation to cheaper cross-vendor lanes to minimize cost. USE WHEN delegating implementation work, choosing between grok-implementer/kimi-implementer/codex-implementer lanes, writing a spec for a subagent, deciding whether to consult fable-advisor, managing session cost or token spend, or running any multi-task build where the session is the architect.
 ---
 
 # Orchestration — the architect's routing doctrine
@@ -26,8 +26,11 @@ What stays with the architect regardless of cost: decomposition, interface desig
 | Lane | Producer | Invoke | Route here when |
 |---|---|---|---|
 | Routine | Grok 4.5 | `grok-implementer` agent | The spec fully determines the outcome: boilerplate, wiring, CRUD, mechanical edits, straightforward features. **Default lane.** Requires the [Grok CLI](https://x.ai/cli). |
+| Trial | Kimi K3 | `kimi-implementer` agent | **Evaluation window — see below.** Reasoning between Grok 4.5 and GPT-5.6 Sol; throughput slightly behind Grok 4.5. Requires the [Kimi Code CLI](https://moonshotai.github.io/kimi-cli/) (`kimi`). |
 | Cross-vendor | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness/completeness is critical enough to want a second implementation, or as the alternative family when the grok lane is unavailable. Requires the codex CLI. |
 | Judgment | Fable 5 | `fable-advisor` agent | Not an implementation lane. See "Commitment boundaries" below. |
+
+**Kimi evaluation window — through 2026-07-24.** Kimi K3 is under active evaluation: until the window closes, when the deciding rule below points at grok or codex, route to `kimi-implementer` instead unless the task is throughput-critical bulk (many mechanical files where grok's speed edge dominates) or correctness-critical enough to still warrant a codex race — in which case race kimi *against* that lane rather than skipping it. The point is to accumulate real evidence on kimi across the routine and reasoning bands, so a kimi lane left idle during the window is a routing failure. Note kimi's positioning honestly in reports: reasoning between Grok 4.5 and GPT-5.6 Sol, throughput slightly behind Grok 4.5. If kimi returns `unavailable`, fall back to the lane the deciding rule originally picked and say so. After 2026-07-24, this paragraph expires: revert to the deciding rule with grok as default, and keep kimi only where the trial's evidence earned it a place.
 
 Deciding rule: how much does the outcome depend on judgment the spec can't capture? Little → the default grok lane; you will verify anyway. A lot, and mistakes are costly → race both lanes on the same spec and pick the stronger diff, or keep that piece with the architect.
 
