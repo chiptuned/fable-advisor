@@ -1,6 +1,6 @@
 {
   "name": "fable-advisor",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Chiptuned throughput-first fork of DannyMac180/fable-advisor. Run your session on Claude's most capable model as a full-time architect: it writes specs and verdicts while Grok 4.5 (Grok CLI), Kimi K3 (Kimi Code CLI, on trial) and GPT-5.6 Sol at high reasoning (Codex) do the typing. Fable-level judgment with cross-vendor implementation.",
   "author": {
     "name": "Vincent Fraillon (chiptuned) — upstream by Dan McAteer",
