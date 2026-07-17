@@ -45,6 +45,8 @@ and include its actual output in your final message."]
 SPEC_EOF
 ```
 
+For single-action or few-file tasks, add to the constraints: **"Do not spawn subagents; act directly."** Grok's internal orchestrator decomposes bigger tasks by spawning its own subagents, and those spawns have been observed cancelled (`PermissionCancelled`) in headless mode on complex work (2026-07-17, acceptEdits era; unretested under `--always-approve`) — the architect owns decomposition, so grok should rarely need its own. If a run dies on `spawn rejected by coordinator`, report it verbatim; that's an upstream limitation, not a spec failure.
+
 2. Invoke grok headlessly, scoped to the working tree — under a **hard wall-clock cap that works on every OS**:
 
 ```bash
