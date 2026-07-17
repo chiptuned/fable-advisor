@@ -92,16 +92,18 @@ run_capped() {  # run_capped <seconds> <cmd...>   (stdin/redirects pass through)
 # under the Bash tool's 600000 ms max so the KILL escalation completes before the
 # tool would kill bash and re-orphan the child. Set the tool timeout to 600000 ms.
 FINAL=$(mktemp -t grok-final.XXXXXX)
-# ⚠ permission-mode: use `auto`, NOT `acceptEdits`. On Windows headless, `acceptEdits`
-# (and `dontAsk`/`default`) SILENTLY DROP every file write — grok exits 0, narrates
-# success, and no file lands (verified A/B 2026-07-10). Only `auto` and
-# `bypassPermissions` actually write headless; `auto` is the least-privilege of the two.
+# ⚠ permissions: use `--always-approve`, not `--permission-mode <anything>`.
+# Observed 2026-07-17 (grok 0.2.101, macOS): `--permission-mode acceptEdits` returns
+# `permission_cancelled` on the write tool, and `auto` silently landed no writes —
+# grok narrates success either way. `--always-approve` landed every write, 4/4 runs.
+# (Older builds behaved differently — 2026-07-10 A/B found `auto` good on Windows.
+# Do not reason from flag names; when writes don't land, this flag is suspect #1.)
 run_capped 540 grok --prompt-file "$SPEC" \
   -m grok-4.5 \
-  --permission-mode auto \
+  --always-approve \
   --output-format plain \
   --cwd "$(pwd)" \
-  > "$FINAL" 2>&1
+  < /dev/null > "$FINAL" 2>&1
 rc=$?
 [ "$rc" = 124 ] && echo "STATUS: timeout — grok exceeded the 540s wall clock"
 ```
@@ -112,22 +114,31 @@ Flag discipline (non-negotiable):
 
 | Flag | Why |
 |---|---|
-| `--prompt-file "$SPEC"` | Headless single-task run from a file. No quoting hazards, no truncated specs. |
+| `--prompt-file "$SPEC"` | **Single-turn headless run** from a file: grok prints the response and exits on its own. No quoting hazards, no truncated specs. (`-p "<task>"` is the inline equivalent for short tasks.) **Never pass the task as a positional argument** — `grok "task"` is the *interactive* form: it boots the TUI, demands a tty, and returns to its prompt instead of exiting. A 2026-07-17 investigation burned 1M+ tokens driving that mode through pty harnesses before reading `--help`. |
 | `-m grok-4.5` | The lane's producer is Grok 4.5, pinned explicitly — never rely on the CLI default. |
-| `--permission-mode auto` | Grok applies edits (and runs commands) without prompting — **required for headless writes on Windows**, where `acceptEdits` silently drops every write (exit 0, no file). `auto` is the least-privilege mode that actually writes; you still re-run verification yourself. |
+| `--always-approve` | The only permission config observed to land writes headlessly on current builds (see comment block above). You still re-run verification yourself. |
 | `--cwd "$(pwd)"` | Deterministic working root. |
 | `--output-format plain` | Final message to stdout, captured for the report. |
+| `< /dev/null` | Proves the run is unattended; headless single-turn mode doesn't read stdin. |
 | `run_capped 540` | Hard wall clock (540s, under the Bash tool's 600000 ms max) enforced on **every** OS: Windows tree-kills the process tree via `taskkill //T //F` on the win PID; macOS/Linux use validated GNU `timeout`/`gtimeout` (`brew install coreutils`). Never trusts Windows `timeout.exe`. On timeout `rc=124` → report `STATUS: timeout` with whatever landed. |
 
 `-m grok-4.5` is the current top Grok tier — if the caller's spec names a different grok model, use that instead; the slug is a documented default, not a constant.
 
-3. **Verify independently.** Read the diff (`git diff` / `git status`), run the spec's verification command yourself, and read grok's final message from `"$FINAL"`. Grok's claim of success is not evidence; your re-run is — **doubly so on Windows**, where a wrong permission-mode makes grok narrate a write that never happened. Confirm files actually changed on disk, not just that grok *said* so.
+Environment traps (each has produced a false "grok is broken" verdict):
+
+- **`~/.grok/config.toml` is sticky global state** (`permission_mode`, `yolo`, `auto_update`) that persists across runs and directories — check it when behavior surprises you. Never "fix" permissions by setting `yolo = true` there; it would auto-approve every hand-run grok on the machine forever. Keep approval on the invocation flag.
+- **`auto_update = true` means the binary drifts between runs** — record `grok --version` (from preflight) in every report so failures attribute to a known build.
+- **First-run directory trust is per-directory and sticky.** If the transcript stalls on a trust prompt, return `STATUS: unavailable` / `REASON: directory not trusted — run grok once interactively in <dir>`; don't try to answer it headlessly.
+- **Zero bytes of output = your harness bug, not a grok finding.** Fix the rig before concluding anything; if two consecutive runs produce nothing, stop and report the harness state instead of iterating. Keep `"$SPEC"`, `"$FINAL"`, and the working tree on failure — never delete the evidence.
+
+3. **Verify independently.** Read the diff (`git diff` / `git status`), run the spec's verification command yourself, and read grok's final message from `"$FINAL"`. Grok's claim of success is not evidence; your re-run is — a wrong permission flag makes grok narrate writes that never happened. Confirm files actually changed on disk, not just that grok *said* so. And confirm the diff touches no test files the spec forbade — an implementer that weakens assertions to go green has not done the work; report it, don't accept it.
 
 ## What you return
 
 ```
 GROK REPORT
 STATUS: complete | partial | timeout | unavailable
+GROK VERSION: [from preflight — auto_update makes builds drift]
 OBJECTIVE: [restated in one line]
 CHANGES: [file — one-line summary, per file, from the actual diff]
 VERIFIED: [verification command you re-ran — actual output evidence]
