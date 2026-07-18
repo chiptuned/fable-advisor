@@ -126,6 +126,8 @@ Flag discipline (non-negotiable):
 
 `-m grok-4.5` is the current top Grok tier — if the caller's spec names a different grok model, use that instead; the slug is a documented default, not a constant.
 
+**`--best-of-n <N>` (headless-only) when the caller asks for it.** If the spec requests best-of-n (e.g. the SuperGrok Heavy quality evaluation — see the orchestration skill), add `--best-of-n N` to the invocation: grok runs the task N ways in parallel and returns the one it judges best. Report that it was enabled and the N used, so the eval's diffs are attributable. Do not add it by default — it multiplies token spend per task.
+
 Environment traps (each has produced a false "grok is broken" verdict):
 
 - **`~/.grok/config.toml` is sticky global state** (`permission_mode`, `yolo`, `auto_update`) that persists across runs and directories — check it when behavior surprises you. Never "fix" permissions by setting `yolo = true` there; it would auto-approve every hand-run grok on the machine forever. Keep approval on the invocation flag.
