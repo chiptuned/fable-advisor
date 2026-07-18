@@ -1,6 +1,6 @@
 ---
 name: orchestration
-description: Routing doctrine for the architect-as-orchestrator pattern — how a session running the smartest model delegates implementation to cheaper cross-vendor lanes to minimize cost. USE WHEN delegating implementation work, choosing between grok-implementer/kimi-implementer/codex-implementer lanes, writing a spec for a subagent, deciding whether to consult fable-advisor, managing session cost or token spend, or running any multi-task build where the session is the architect.
+description: Routing doctrine for the architect-as-orchestrator pattern — how a session running the smartest model delegates implementation to cheaper cross-vendor lanes to minimize cost. USE WHEN delegating implementation work, choosing between grok-implementer/codex-implementer lanes, writing a spec for a subagent, deciding whether to consult fable-advisor, managing session cost or token spend, or running any multi-task build where the session is the architect.
 ---
 
 # Orchestration — the architect's routing doctrine
@@ -9,9 +9,9 @@ The session is the architect: it owns requirements, architecture, decomposition,
 
 ## Cost and throughput — the prime directives
 
-The session model is the most expensive lane in the system, on both input and output tokens — and it is also the bottleneck: nothing moves while it types. The economic case for this pattern is keeping its token volume low; the speed case is keeping cheap lanes running while it thinks. Spend Fable on judgment, spend the lanes on volume, and never let the architect be the only thing running. Four rules follow.
+The session model is the most expensive lane in the system, on both input and output tokens — and it is also the bottleneck: nothing moves while it types. Since 2026-07-20 it is also the scarcest: Fable 5 runs at 50% of Max-plan limits, and the architect's measured weekly budget sits *below* its recent usage. Architect tokens are now the binding constraint of the whole fleet — the external CLI lanes draw on separate vendor quotas and don't touch it. Spend Fable on judgment, spend the lanes on volume, and never let the architect be the only thing running. Four rules follow.
 
-**Emit judgment, not volume.** The architect's output is decomposition, specs, routing decisions, verdicts on diffs, and short reports. It does not type implementation code, test bodies, boilerplate, or config files. A code block longer than an interface signature or a few illustrative lines is a spec that hasn't been delegated yet — stop and delegate it. Fixing a lane's bug by hand is the same failure in disguise: send a corrected spec back to the cheap lane instead.
+**Emit judgment, not volume.** The architect's output is decomposition, specs, routing decisions, verdicts on diffs, and short reports. It does not type implementation code, test bodies, boilerplate, or config files. A code block longer than an interface signature or a few illustrative lines is a spec that hasn't been delegated yet — stop and delegate it. Fixing a lane's bug by hand is the same failure in disguise: send a corrected spec back to the cheap lane instead. Under the halved Fable cap this is no longer just a cost failure — inline architect implementation spends the one quota the fleet cannot buy more of, so it is a quota failure too.
 
 **Keep the context lean.** Everything in the architect's context is re-read at architect prices on every turn. Delegate broad exploration, codebase searches, and log-grepping to a cheap read-only agent and keep only the conclusions; read files yourself only when the decision genuinely depends on the exact code. Don't paste long files, full diffs, or verbose command output into the conversation when a path reference or an excerpt will do.
 
@@ -25,12 +25,17 @@ What stays with the architect regardless of cost: decomposition, interface desig
 
 | Lane | Producer | Invoke | Route here when |
 |---|---|---|---|
-| Routine | Grok 4.5 | `grok-implementer` agent | The spec fully determines the outcome: boilerplate, wiring, CRUD, mechanical edits, straightforward features. **Default lane.** Requires the [Grok CLI](https://x.ai/cli). |
-| Trial | Kimi K3 | `kimi-implementer` agent | **Evaluation window — see below.** Reasoning between Grok 4.5 and GPT-5.6 Sol; throughput slightly behind Grok 4.5. Requires the [Kimi Code CLI](https://moonshotai.github.io/kimi-cli/) (`kimi`). |
-| Cross-vendor | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness/completeness is critical enough to want a second implementation, or as the alternative family when the grok lane is unavailable. Requires the codex CLI. |
+| Routine | Grok 4.5 | `grok-implementer` agent | The spec fully determines the outcome: boilerplate, wiring, CRUD, mechanical edits, straightforward features. **Default lane**, and the parallelism workhorse. Requires the [Grok CLI](https://x.ai/cli). |
+| Cross-vendor / overflow | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness/completeness is critical enough to want a second implementation — **and bulk overflow whenever the grok lane is saturated or unavailable**: it is the cheapest owned capacity in the fleet, not a premium reserve. Requires the codex CLI. |
 | Judgment | Fable 5 | `fable-advisor` agent | Not an implementation lane. See "Commitment boundaries" below. |
 
-**Kimi evaluation window — through 2026-07-24.** Kimi K3 is under active evaluation: until the window closes, when the deciding rule below points at grok or codex, route to `kimi-implementer` instead unless the task is throughput-critical bulk (many mechanical files where grok's speed edge dominates) or correctness-critical enough to still warrant a codex race — in which case race kimi *against* that lane rather than skipping it. The point is to accumulate real evidence on kimi across the routine and reasoning bands, so a kimi lane left idle during the window is a routing failure. Note kimi's positioning honestly in reports: reasoning between Grok 4.5 and GPT-5.6 Sol, throughput slightly behind Grok 4.5. If kimi returns `unavailable`, fall back to the lane the deciding rule originally picked and say so. After 2026-07-24, this paragraph expires: revert to the deciding rule with grok as default, and keep kimi only where the trial's evidence earned it a place.
+Lane capacity and concurrency — measured/observed 2026-07, marked as such; re-measure before treating as constants:
+
+- **grok** (SuperGrok): ~99M tok/week at ~€0.07/Mtok; fastest lane measured (TTFT p50 6.2s, highest tok/s). **Observed ×9 concurrent sessions without throttling**; request pool ~8,300/window on grok-4.5. Internal parallelism (`--best-of-n`, inline `--agents`) multiplies further. SuperGrok Heavy is 10× quota for 10× price (community-verified) — a **concurrency/headroom purchase only, never a per-token value upgrade**; consider it solely if the ~99M/week wall is hit consistently.
+- **codex** (ChatGPT Plus): ~157M tok/week at ~€0.03/Mtok — cheapest owned capacity, ~35% spare. Concurrency cap undocumented; **observed ×2 fine — treat as moderate until measured higher**. ChatGPT Pro's actual differentiator is agent concurrency ("maximum access to Codex agent") plus ~20× volume (~3.2B tok/week, ~€0.013/Mtok): it is the designated escape valve if fleet demand — parallel codex instances or raw volume — outgrows current caps; don't upgrade preemptively.
+- **fable-advisor consults**: cheap and parallel-safe — but every Claude-side subagent draws on the post-2026-07-20 halved Fable quota, and the external CLI lanes don't. That asymmetry is now a core reason this pattern exists: state it, and push volume outward.
+
+Lane history, so decisions aren't relitigated: a **Kimi K3 trial lane** ran 2026-07-16→18 and was **retired early on capacity economics, not quality** — ~€1.00/Mtok at full plan capacity (14× grok, 33× codex), ~9M tok/week on the viable plan tier, and a reasoning band already covered by the two kept lanes. Subscription cancelled; full rationale in CHANGELOG.md. Don't propose re-adding it without materially changed pricing.
 
 Deciding rule: how much does the outcome depend on judgment the spec can't capture? Little → the default grok lane; you will verify anyway. A lot, and mistakes are costly → race both lanes on the same spec and pick the stronger diff, or keep that piece with the architect.
 
@@ -60,6 +65,8 @@ A spec you can't finish writing is a signal the decision isn't made yet — that
 
 Independent specs (no shared files, no ordering dependency) launch as parallel agents in a single message — this is the main throughput lever. Dispatch each lane as soon as its spec is written; verify finished lanes while later ones are still running. Sequential chains and single-file surgery stay serial. For high-stakes work, a pick-the-stronger-diff race — `grok-implementer` and `codex-implementer` on the same spec, architect judges — buys three-vendor confidence for one extra lane's cost.
 
+Sizing rule: **effective lane throughput = per-request tok/s × safe concurrent instances.** A slower lane with high parallelism beats a faster serial one for fan-out work — so racing and wide fan-outs default to the high-concurrency lane (grok, ×9 observed) and use codex at its moderate observed concurrency (×2) rather than assuming more. When a task decomposes into many independent specs, that decomposition is itself the argument for routing them to grok in parallel rather than queueing them anywhere serially.
+
 ## Commitment boundaries
 
 Consult `fable-advisor` (read-only, verdict in under 300 words) at the moments that decide whether the next hour is wasted:
@@ -68,7 +75,7 @@ Consult `fable-advisor` (read-only, verdict in under 300 words) at the moments t
 - Whenever the same problem has resisted two distinct attempts
 - Once before declaring a multi-step deliverable done
 
-Pass it the decision, the constraints, and the options considered. Act on the verdict or surface the disagreement — never silently ignore it. (If the session itself already runs on Fable, the advisor still earns its keep as a context-clean skeptic reading the actual code.)
+Pass it the decision, the constraints, and the options considered. Act on the verdict or surface the disagreement — never silently ignore it. (If the session itself already runs on Fable, the advisor still earns its keep as a context-clean skeptic reading the actual code.) A consult is a few hundred tokens of verdict against hours of misdirected lane work — cheap relative to architect typing even under the halved Fable cap. Do not ration consults to save quota; ration inline implementation instead.
 
 ## Verification
 

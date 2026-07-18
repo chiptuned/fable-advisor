@@ -45,7 +45,7 @@ and include its actual output in your final message."]
 SPEC_EOF
 ```
 
-For single-action or few-file tasks, add to the constraints: **"Do not spawn subagents; act directly."** Grok's internal orchestrator decomposes bigger tasks by spawning its own subagents. Under `--permission-mode` flags those spawns were cancelled (`PermissionCancelled`, 2026-07-17); under `--always-approve` they are approved and work (verified same day: forced-spawn test, explore subagent ran, file landed, rc=0). Keep the constraint anyway — the architect owns decomposition, and grok's internal orchestrator can even re-route through other lanes' CLIs it discovers (observed routing to kimi first per this plugin's own doctrine), which double-spends and muddies attribution. If a run dies on `spawn rejected by coordinator`, report it verbatim with the grok version.
+For single-action or few-file tasks, add to the constraints: **"Do not spawn subagents; act directly."** Grok's internal orchestrator decomposes bigger tasks by spawning its own subagents. Under `--permission-mode` flags those spawns were cancelled (`PermissionCancelled`, 2026-07-17); under `--always-approve` they are approved and work (verified same day: forced-spawn test, explore subagent ran, file landed, rc=0). Keep the constraint anyway — the architect owns decomposition, and grok's internal orchestrator can even re-route through other lanes' CLIs it discovers (observed 2026-07-17 routing through a since-retired trial lane's CLI on its own initiative), which double-spends and muddies attribution. If a run dies on `spawn rejected by coordinator`, report it verbatim with the grok version.
 
 2. Invoke grok headlessly, scoped to the working tree — under a **hard wall-clock cap that works on every OS**:
 

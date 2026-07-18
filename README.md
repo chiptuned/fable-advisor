@@ -1,6 +1,6 @@
 # Fable Advisor — chiptuned fork
 
-> **This is [chiptuned](https://github.com/chiptuned)'s throughput-first fork of [DannyMac180/fable-advisor](https://github.com/DannyMac180/fable-advisor).** Differences from upstream: all open upstream PRs merged (#2 #4 #5), routing doctrine retuned to prioritize wall-clock throughput (parallel dispatch, early hand-off, anti-inline-edit batching), a **Kimi K3 trial lane** on evaluation through 2026-07-24, and no cursor/Smithers lanes. Install: `claude plugin marketplace add chiptuned/fable-advisor`.
+> **This is [chiptuned](https://github.com/chiptuned)'s throughput-first fork of [DannyMac180/fable-advisor](https://github.com/DannyMac180/fable-advisor).** Differences from upstream: all open upstream PRs merged (#2 #4 #5), routing doctrine retuned to prioritize wall-clock throughput and the architect's quota (parallel dispatch, early hand-off, anti-inline-edit batching, measured lane concurrency), and no cursor/Smithers lanes. A Kimi K3 trial lane ran 2026-07 and was retired on capacity economics (see CHANGELOG.md). Install: `claude plugin marketplace add chiptuned/fable-advisor`.
 
 **The smartest model runs the show. Cheaper models do the typing.**
 
@@ -8,9 +8,8 @@ Claude Code lets every subagent run on a different model — and lets the sessio
 
 | Lane | Producer | Invocation | Route here when |
 |---|---|---|---|
-| Routine | **Grok 4.5** | `grok-implementer` agent (default) | The spec fully determines the outcome — Grok does the typing via the [Grok CLI](https://x.ai/cli) |
-| Trial | **Kimi K3** | `kimi-implementer` agent | Evaluation window through 2026-07-24 — promoted over grok/codex to gather evidence; via the [Kimi Code CLI](https://moonshotai.github.io/kimi-code/) (`-m kimi-code/k3`, headless) |
-| Cross-vendor | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical, or you want a second independent implementation to compare |
+| Routine | **Grok 4.5** | `grok-implementer` agent (default) | The spec fully determines the outcome — Grok does the typing via the [Grok CLI](https://x.ai/cli); highest measured concurrency, the fan-out workhorse |
+| Cross-vendor / overflow | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical second implementation, and bulk overflow when grok is saturated — cheapest owned capacity in the fleet |
 | Judgment | Fable 5 | `fable-advisor` agent | Commitment boundaries — see below |
 
 Tokens route by volume: the expensive model emits the fewest tokens (judgment and specs), cheap lanes emit the most (code). Implementation mechanics are ~90% of a session's tokens and Grok 4.5 handles them at near-parity — so this runs far cheaper than Fable-for-everything, and every implementation comes from a *different model family* than the architect that reviews it: cross-vendor review is built into the routing, not bolted on. For high-stakes work, race `grok-implementer` and `codex-implementer` on the same spec and let the architect pick the stronger diff.
