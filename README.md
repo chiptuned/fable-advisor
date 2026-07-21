@@ -10,6 +10,7 @@ Claude Code lets every subagent run on a different model — and lets the sessio
 |---|---|---|---|
 | Routine | **Grok 4.5** | `grok-implementer` agent (default) | The spec fully determines the outcome — Grok does the typing via the [Grok CLI](https://x.ai/cli); highest measured concurrency, the fan-out workhorse |
 | Cross-vendor / overflow | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical second implementation, and bulk overflow when grok is saturated — cheapest owned capacity in the fleet |
+| Third family (Google) | Gemini 3.1 Pro (high) | `gemini-implementer` agent | Google-family independent diff / third-way race via the `agy` CLI; economics unmeasured, no standing volume role yet |
 | Judgment | Fable 5 | `fable-advisor` agent | Commitment boundaries — see below |
 
 Tokens route by volume: the expensive model emits the fewest tokens (judgment and specs), cheap lanes emit the most (code). Implementation mechanics are ~90% of a session's tokens and Grok 4.5 handles them at near-parity — so this runs far cheaper than Fable-for-everything, and every implementation comes from a *different model family* than the architect that reviews it: cross-vendor review is built into the routing, not bolted on. For high-stakes work, race `grok-implementer` and `codex-implementer` on the same spec and let the architect pick the stronger diff.

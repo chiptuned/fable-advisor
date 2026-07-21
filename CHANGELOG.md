@@ -1,5 +1,27 @@
 # Changelog — chiptuned/fable-advisor
 
+## 3.8.0 — 2026-07-21 · Gemini lane (agy / Gemini 3.1 Pro)
+
+- **New `gemini-implementer` lane**: drives the `agy` CLI (Google Antigravity CLI,
+  v1.1.5) on **Gemini 3.1 Pro high** (`--model gemini-3.1-pro-high`) in headless
+  print mode (`-p`). A third model family (Google) for cross-vendor diversity and
+  three-way races. Authored via the grok lane; corrected and verified by the
+  architect.
+- **Verified end-to-end (2026-07-21)**: headless print + auth, and the file-write
+  path — agy fixed a seeded single-file bug, the check passed, `git diff` scoped to
+  the target only.
+- **Two hard findings baked into the doc**: (1) `--mode accept-edits` is
+  insufficient headless (auto-denies `read_file` → zero output); only
+  `--dangerously-skip-permissions` works — parallels grok's `--always-approve`
+  finding. (2) agy is **sandboxed to `~/.gemini/antigravity-cli/scratch` and ignores
+  process cwd** — `--add-dir <absolute root>` is **mandatory** and the spec must use
+  absolute paths; without it agy edits a private scratch copy and falsely reports
+  success (empty `git diff` is the tell).
+- **Economics unmeasured**: no per-token cost / weekly quota / concurrency numbers
+  yet, so gemini gets **no standing bulk role** — cross-vendor/race use only until
+  measured. Natural third contender for the open grok-Heavy quality evaluation.
+- Requires `Bash(agy:*)` in the permission allowlist (added to user settings).
+
 ## 3.7.0 — 2026-07-18 · SuperGrok Heavy
 
 Operator moved base SuperGrok → SuperGrok Heavy.
