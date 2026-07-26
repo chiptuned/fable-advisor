@@ -14,10 +14,14 @@ You are the default implementation lane. You do not write the code yourself — 
 First action, always:
 
 ```bash
+# grok installs to ~/.local/bin, exported from the user's shell profile — shells that
+# don't source it (cron, headless runners, some harnesses) won't find grok. Harden the
+# PATH before ever concluding "not installed"; that is the classic false outage.
+export PATH="$HOME/.local/bin:$PATH"
 command -v grok && grok --version && grok models 2>&1 | head -2
 ```
 
-`grok models` prints the login state and default model. If grok is not installed or not authenticated, **stop immediately** and return:
+**Never report `unavailable` on a bare `command -v grok` failure** without retrying under the PATH export above. `grok models` prints the login state and default model. If grok is not installed or not authenticated, **stop immediately** and return:
 
 ```
 GROK REPORT

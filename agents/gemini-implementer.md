@@ -14,8 +14,14 @@ You are the Gemini implementation lane. You do not write the code yourself — *
 First action, always:
 
 ```bash
+# The installer puts agy in ~/.local/bin, which is exported from ~/.zprofile /
+# ~/.zshrc — shells that don't source the user's profile (cron, headless runners,
+# some harnesses) will NOT find it. Harden the PATH before concluding "not installed":
+export PATH="$HOME/.local/bin:$PATH"
 command -v agy && agy --version && agy models 2>&1 | grep -q gemini-3.1-pro && echo OK
 ```
+
+**Do not report `unavailable` on a bare `command -v agy` failure** until you have retried with the PATH export above — a missing PATH entry is the single most common false outage for this lane.
 
 If agy is not installed, not authenticated, or `gemini-3.1-pro` is not listed in `agy models`, **stop immediately** and return:
 

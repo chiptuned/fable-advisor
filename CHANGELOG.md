@@ -1,5 +1,25 @@
 # Changelog — chiptuned/fable-advisor
 
+## 3.9.2 — 2026-07-26 · False-outage fix (PATH) + `critical` status
+
+- **Root-caused a reported "gemini lane unavailable" that was not gemini.** `agy` and
+  `grok` both install to `~/.local/bin`, which is exported only from the user's shell
+  profile; a subagent shell that doesn't source it fails `command -v` and the lane
+  correctly-but-wrongly reports `STATUS: unavailable` while the CLI works fine.
+  Confirmed live: a gemini subagent reported `command -v agy` failing until it
+  exported `PATH="$HOME/.local/bin:$PATH"`. Both preflights now harden the PATH first
+  and are forbidden from declaring `unavailable` on a bare `command -v` miss.
+- **Fleet health check, all three lanes green** (each verified independently by the
+  architect, negative control failing first): grok **0.2.111**, codex **0.144.4** on
+  gpt-5.6-sol (no downgrade, sandbox workspace-write), agy **1.1.7** via `--add-dir`.
+  Diffs correctly scoped, verification files untouched in all three.
+- **Doctrine: `status: critical` added** — the collector emits it (observed: Opus 5 at
+  85% used, cap in 4.8h) but the section only described `ok|warn`. `critical` now means
+  stop *starting* work there, and on a Claude window, tell the operator plainly rather
+  than silently burning the remainder. Unrecognised statuses are treated as ≥ `warn`.
+- Note: grok drifted 0.2.106 → 0.2.111 and agy 1.1.5 → 1.1.7 within days — the
+  record-the-CLI-version rule keeps earning its place.
+
 ## 3.9.0 — 2026-07-26 · Opus 5 architects + usage-driven routing
 
 - **Architect can be Fable 5 *or* Opus 5.** `fable-advisor` frontmatter changed
