@@ -9,7 +9,7 @@ The session is the architect: it owns requirements, architecture, decomposition,
 
 ## Cost and throughput — the prime directives
 
-The session model is the most expensive lane in the system, on both input and output tokens — and it is also the bottleneck: nothing moves while it types. Since 2026-07-20 it is also the scarcest: Fable 5 runs at 50% of Max-plan limits, and the architect's measured weekly budget sits *below* its recent usage. Architect tokens are now the binding constraint of the whole fleet — the external CLI lanes draw on separate vendor quotas and don't touch it. Spend Fable on judgment, spend the lanes on volume, and never let the architect be the only thing running. Four rules follow.
+The session model is the most expensive lane in the system, on both input and output tokens — and it is also the bottleneck: nothing moves while it types. The architect runs on **Fable 5 or Opus 5** (both work; the advisor inherits whichever the session uses). Since 2026-07-20 it is also the scarcest: Fable 5 runs at 50% of Max-plan limits, and the architect's measured weekly budget sits *below* its recent usage. **Fable and Opus draw on separate windows** (measured: Fable has its own weekly window; Opus counts against the all-models weekly window), so which one has headroom changes day to day — see "Dynamic routing from measured usage". Architect tokens are the binding constraint of the whole fleet — the external CLI lanes draw on separate vendor quotas and don't touch either Claude window. Spend the architect on judgment, spend the lanes on volume, and never let the architect be the only thing running. Four rules follow.
 
 **Emit judgment, not volume.** The architect's output is decomposition, specs, routing decisions, verdicts on diffs, and short reports. It does not type implementation code, test bodies, boilerplate, or config files. A code block longer than an interface signature or a few illustrative lines is a spec that hasn't been delegated yet — stop and delegate it. Fixing a lane's bug by hand is the same failure in disguise: send a corrected spec back to the cheap lane instead. Under the halved Fable cap this is no longer just a cost failure — inline architect implementation spends the one quota the fleet cannot buy more of, so it is a quota failure too.
 
@@ -28,7 +28,7 @@ What stays with the architect regardless of cost: decomposition, interface desig
 | Routine + bulk | Grok 4.5 | `grok-implementer` agent | The spec fully determines the outcome: boilerplate, wiring, CRUD, mechanical edits, straightforward features. **Default lane**, the parallelism workhorse, and — on SuperGrok Heavy — the high-capacity sink for bulk volume shifted off the halved Fable budget. Requires the [Grok CLI](https://x.ai/cli). |
 | Cross-vendor | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness/completeness is critical enough to want a second implementation, and the alternative family when grok is unavailable. Cheapest per-token owned capacity. Requires the codex CLI. |
 | Third family (Google) | Gemini 3.1 Pro (high) | `gemini-implementer` agent | A Google-family independent implementation, or a third diff in a race, when cross-vendor diversity is worth the extra lane. **Economics unmeasured — no standing volume role yet** (see capacity note). Requires the `agy` CLI (Google Antigravity CLI). |
-| Judgment | Fable 5 | `fable-advisor` agent | Not an implementation lane. See "Commitment boundaries" below. |
+| Judgment | Fable 5 **or Opus 5** | `fable-advisor` agent | Not an implementation lane. Inherits the session model; override per consult to spend the Claude window with headroom. See "Commitment boundaries" below. |
 
 Lane capacity and concurrency — measured/observed 2026-07, marked as such; re-measure before treating as constants:
 
@@ -36,6 +36,30 @@ Lane capacity and concurrency — measured/observed 2026-07, marked as such; re-
 - **codex** (ChatGPT Plus): ~157M tok/week at ~€0.03/Mtok — cheapest *per-token* owned capacity, ~35% spare. Concurrency cap undocumented; **observed ×2 fine — treat as moderate until measured higher**. Its standing role is now cross-vendor correctness and the alternative family when grok is unavailable, rather than the capacity sink (grok Heavy took that). ChatGPT Pro's differentiator is agent concurrency ("maximum access to Codex agent") plus ~20× volume (~3.2B tok/week, ~€0.013/Mtok): the escape valve if parallel codex demand or raw volume ever outgrows current caps; don't upgrade preemptively.
 - **gemini** (`agy` CLI, Gemini 3.1 Pro high): added 2026-07-21. Per-token cost, weekly quota, and concurrency are **UNMEASURED** — do not give it a standing bulk/overflow role until they are. Verified working: headless single-file writes via `--add-dir <root>` + `--dangerously-skip-permissions` (the CLI is sandboxed and ignores cwd — `--add-dir` is mandatory; see the agent doc). Use it now for cross-vendor diversity (a Google third family in races), and measure it on a few real tasks — including the open grok-Heavy quality question, gemini is a natural third contender — before ranking it.
 - **fable-advisor consults**: cheap and parallel-safe — but every Claude-side subagent draws on the post-2026-07-20 halved Fable quota, and the external CLI lanes don't. That asymmetry is now a core reason this pattern exists: state it, and push volume outward.
+
+### Dynamic routing from measured usage
+
+The static numbers above age. When the operator provides a usage collector, prefer *live* quota over the table. Run it once at session start and again before any large fan-out or when a lane misbehaves — it is one cheap shell call, not a per-task ritual:
+
+```bash
+python3 ~/repos/llm_usage/collector.py --brief   # operator's path; JSON on stdout
+```
+
+It emits, per lane: `pct_used` / `pct_left`, `window`, `resets_in_h`, `caps_in_h`, `caps_before_reset`, `burn_pct_per_h`, `status` (`ok` | `warn`), and `recommend` (bool) — plus a top-level `best_lane` and a `note` that the data is advisory.
+
+How to act on it:
+
+- **`recommend: false` or `status: warn`** → stop sending that lane new bulk work; finish what's in flight and shift the queue elsewhere.
+- **`caps_before_reset: true`** → that lane runs out *before* its window resets; combined with `caps_in_h` and `burn_pct_per_h` it tells you how long you can keep spending. Treat it as the strongest shed-load signal in the payload.
+- **Highest `pct_left` among *active* lanes** → the natural sink for bulk and wide fan-outs (cross-check against the concurrency notes above: capacity and parallelism are different constraints).
+- **Architect side:** the Claude windows are separate — when the session's own model is in `warn`/`caps_before_reset` while the other Claude window has headroom, keep the session where it is but **route `fable-advisor` consults to the model with room** by passing an explicit model override on the Agent call (it beats the agent's `inherit` frontmatter). Consults are small; this is about not spending the last of a nearly-capped window on them. If *both* Claude windows are tight, push harder outward: bigger batches per lane spec, shorter architect output, fewer Claude-side subagents (Explore included — those bill the Claude window too; the CLI lanes never do).
+
+Traps — the payload is advisory, not an oracle:
+
+- **Never route on `best_lane` alone.** It ranks by free capacity, so a *cancelled or retired* subscription scores perfect (0% used, 100% left) and wins. Observed 2026-07-26: `best_lane: "kimi"` — a lane retired on 2026-07-18. Always intersect the collector's lanes with the fleet's actually-active lanes (grok, codex, gemini + the Claude windows); ignore rows for lanes this doctrine no longer runs.
+- **Negative `resets_in_h` means stale data** (window already elapsed, nothing refreshed it) — treat that row as unknown, not as free capacity.
+- **`pct_left` is not throughput.** A lane with quota but poor concurrency won't clear a fan-out faster than a busier high-concurrency lane; apply the sizing rule from "Parallelism".
+- The collector's own `note` says provider-reported *or estimated*. Never let it override a hard failure signal from a lane's own report (`unavailable`, `timeout`, auth error) — live evidence beats projected quota.
 
 Lane history, so decisions aren't relitigated: a **Kimi K3 trial lane** ran 2026-07-16→18 and was **retired early on capacity economics, not quality** — ~€1.00/Mtok at full plan capacity (14× grok, 33× codex), ~9M tok/week on the viable plan tier, and a reasoning band already covered by the two kept lanes. Subscription cancelled; full rationale in CHANGELOG.md. Don't propose re-adding it without materially changed pricing.
 

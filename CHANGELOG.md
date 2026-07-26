@@ -1,5 +1,35 @@
 # Changelog — chiptuned/fable-advisor
 
+## 3.9.0 — 2026-07-26 · Opus 5 architects + usage-driven routing
+
+- **Architect can be Fable 5 *or* Opus 5.** `fable-advisor` frontmatter changed
+  `model: fable` → **`model: inherit`**, so the advisor follows whichever top model
+  the session runs (documented value; invalid/unavailable pins silently fall back to
+  the inherited model anyway). Doctrine, README, and lane table generalized from
+  "Fable" to "the architect model", keeping the measured Fable-specific facts intact.
+  Removed the stale README instruction to hand-edit `model: fable` → `model: opus`.
+- **New doctrine section: "Dynamic routing from measured usage."** When the operator
+  ships a usage collector (`python3 ~/repos/llm_usage/collector.py --brief`, JSON),
+  the orchestrator prefers live quota over the static table: shed load on
+  `recommend: false` / `status: warn`, treat `caps_before_reset: true` as the
+  strongest shed signal, sink bulk into the highest `pct_left` **active** lane.
+- **Fable and Opus are separate windows** (measured 2026-07-26: Fable 59% used /
+  recommend, Opus 5 79% / warn / caps in 6.6h). When the session's own window is
+  tight and the other has headroom, route `fable-advisor` consults to the model with
+  room via a per-invocation model override (it beats `inherit`); if both are tight,
+  push volume outward — Claude-side subagents (Explore included) bill the Claude
+  window, CLI lanes never do.
+- **Documented the `best_lane` trap:** the collector ranks by free capacity, so a
+  *cancelled* subscription scores perfect. Observed live: `best_lane: "kimi"` — a
+  lane retired 2026-07-18. Never route on `best_lane` alone; intersect with the
+  fleet's active lanes. Negative `resets_in_h` = stale row, not free capacity.
+- **gemini-implementer verified as a spawned subagent** (not just direct CLI): fixed
+  edge-case logic (malformed-input `None` handling + clamp) on agy **1.1.7**, diff
+  scoped to the target file, assertions untouched. Note agy self-updated 1.1.5 →
+  1.1.7 within days — the lane's "record the CLI version" rule is load-bearing.
+- README install block corrected to `chiptuned/fable-advisor` (was pointing at
+  upstream, which would install a different plugin).
+
 ## 3.8.0 — 2026-07-21 · Gemini lane (agy / Gemini 3.1 Pro)
 
 - **New `gemini-implementer` lane**: drives the `agy` CLI (Google Antigravity CLI,

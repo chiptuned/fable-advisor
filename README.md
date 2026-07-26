@@ -4,14 +4,14 @@
 
 **The smartest model runs the show. Cheaper models do the typing.**
 
-Claude Code lets every subagent run on a different model — and lets the session itself run on a different model than its subagents. This plugin exploits that with the **architect pattern**: your session runs on **Fable 5**, Anthropic's most capable model, acting as a full-time architect. It owns requirements, decomposition, specs, and verification — and routes every implementation task to the cheapest adequate lane:
+Claude Code lets every subagent run on a different model — and lets the session itself run on a different model than its subagents. This plugin exploits that with the **architect pattern**: your session runs on **Fable 5 or Opus 5**, Anthropic's most capable models, acting as a full-time architect. It owns requirements, decomposition, specs, and verification — and routes every implementation task to the cheapest adequate lane:
 
 | Lane | Producer | Invocation | Route here when |
 |---|---|---|---|
 | Routine | **Grok 4.5** | `grok-implementer` agent (default) | The spec fully determines the outcome — Grok does the typing via the [Grok CLI](https://x.ai/cli); highest measured concurrency, the fan-out workhorse |
 | Cross-vendor / overflow | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical second implementation, and bulk overflow when grok is saturated — cheapest owned capacity in the fleet |
 | Third family (Google) | Gemini 3.1 Pro (high) | `gemini-implementer` agent | Google-family independent diff / third-way race via the `agy` CLI; economics unmeasured, no standing volume role yet |
-| Judgment | Fable 5 | `fable-advisor` agent | Commitment boundaries — see below |
+| Judgment | Fable 5 / Opus 5 | `fable-advisor` agent | Commitment boundaries — inherits the session model, overridable per consult — see below |
 
 Tokens route by volume: the expensive model emits the fewest tokens (judgment and specs), cheap lanes emit the most (code). Implementation mechanics are ~90% of a session's tokens and Grok 4.5 handles them at near-parity — so this runs far cheaper than Fable-for-everything, and every implementation comes from a *different model family* than the architect that reviews it: cross-vendor review is built into the routing, not bolted on. For high-stakes work, race `grok-implementer` and `codex-implementer` on the same spec and let the architect pick the stronger diff.
 
@@ -20,7 +20,7 @@ The plugin ships the **orchestration skill** — the routing doctrine that teach
 ## Install
 
 ```
-claude plugin marketplace add DannyMac180/fable-advisor
+claude plugin marketplace add chiptuned/fable-advisor
 claude plugin install fable-advisor@fable-advisor
 ```
 
@@ -34,15 +34,15 @@ claude plugin update fable-advisor@fable-advisor
 Then start your session as the architect:
 
 ```
-/model fable
+/model fable      # or: /model opus  — both are supported architect models
 ```
 
 **Lite mode — one file, 30 seconds.** Don't want the full pattern? Copy [`agents/fable-advisor.md`](agents/fable-advisor.md) into `~/.claude/agents/` and keep your session on Sonnet. You get advisor consults at commitment boundaries without the orchestration layer (see "Advisor-only mode" below).
 
 ## Requirements
 
-- **Claude Code ≥ 2.1.170** with a subscription that includes Fable 5 (Pro, Max, Team, or Enterprise — all current consumer plans qualify).
-- **No Fable access** (e.g. API-key billing)? Use `/model opus` for the session and change `model: fable` → `model: opus` in the advisor file. Same pattern, model tiers shift down one.
+- **Claude Code ≥ 2.1.170** with a subscription that includes Fable 5 or Opus 5 (Pro, Max, Team, or Enterprise — all current consumer plans qualify).
+- **No Fable access** (e.g. API-key billing)? Run the session on `/model opus` — the advisor is `model: inherit`, so it follows the session automatically; no file edit needed. The caller can also override the model per consult (see "Dynamic routing from measured usage" in the orchestration skill).
 - **Grok lane (the default implementer):** the `grok-implementer` agent needs the [xAI Grok CLI](https://x.ai/cli) installed and authenticated (install from [x.ai/cli](https://x.ai/cli), then `grok login`). It drives **Grok 4.5** headlessly (`grok --prompt-file … -m grok-4.5`). Without it the agent reports `STATUS: unavailable` — it never silently falls back to a Claude model.
 - **Codex lane (optional):** the `codex-implementer` agent needs the [OpenAI Codex CLI](https://github.com/openai/codex) installed and authenticated (`npm i -g @openai/codex`, then `codex login`). It invokes **GPT-5.6 Sol** as `gpt-5.6-sol` with `model_reasoning_effort=high`. GPT-5.6 access may be limited during preview; without model access, an installed/authenticated CLI, or successful authentication, the agent reports `STATUS: unavailable` and the other lanes remain unaffected.
 - Heads-up: if a pinned Claude model isn't available on your account, Claude Code silently falls back to your session model — the pattern degrades quietly rather than erroring. If results feel unremarkable, check your plan. (This quiet fallback applies only to Claude model pins — the grok and codex lanes always fail loudly with a structured error.)
@@ -51,7 +51,7 @@ Model resolution order in Claude Code: `CLAUDE_CODE_SUBAGENT_MODEL` env var → 
 
 ## Use it
 
-With the session on Fable, just ask for work — the orchestration skill routes it:
+With the session on Fable (or Opus 5), just ask for work — the orchestration skill routes it:
 
 ```
 Add rate limiting to our public API. Design it, delegate the
@@ -72,7 +72,7 @@ accepting any lane's report.
 
 ## Commitment boundaries
 
-Even the architect gets a second opinion. The `fable-advisor` agent is a read-only skeptic — consulted before architecture decisions, migrations, API designs, and whenever a problem has resisted two attempts. It reads your actual code and returns a verdict in under 300 words. It never implements. Running it from a Fable session still pays: it sees the code fresh, without your conversation's accumulated assumptions.
+Even the architect gets a second opinion. The `fable-advisor` agent is a read-only skeptic — consulted before architecture decisions, migrations, API designs, and whenever a problem has resisted two attempts. It reads your actual code and returns a verdict in under 300 words. It never implements. Running it from a Fable or Opus 5 session still pays: it sees the code fresh, without your conversation's accumulated assumptions.
 
 ## Advisor-only mode (the original pattern)
 
