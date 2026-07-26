@@ -1,5 +1,27 @@
 # Changelog — chiptuned/fable-advisor
 
+## 4.0.0 — 2026-07-26 · Opus 5 is the architect and the advisor
+
+Operator decision from published benchmarks: Opus 5 leads on the axes this pattern
+actually uses — agentic terminal coding (43.3% vs 33.7%), knowledge work (GDPval-AA
+1861 vs 1747), novel problem-solving (ARC-AGI-3 30.2% vs n/a), computer use (70.6% vs
+66.1%), business workflows (26.0% vs 17.4%), agentic search (90.8% vs 87.4%). The
+remaining counter-examples are within noise (HLE no-tools 56.5 vs 56.3, FrontierCode
+53.5 vs 53.4); two apparent wins in that column are Mythos 5 rows, not Fable.
+
+- **Advisor pinned to Opus 5**: `model: inherit` → **`model: opus`**, so a consult is
+  worth the same from any session, including a cheap one (advisor-only mode).
+- **Architect is Opus 5** throughout the doctrine, README, and manifests. The
+  dual-Claude-window logic is gone: **everything Claude-side now shares one weekly
+  all-models window** — architect turns, advisor consults, and every Claude subagent
+  (Explore included). Switching Claude models buys no headroom; only pushing work to
+  the external CLI lanes does. That asymmetry is stated as the core reason the pattern
+  exists.
+- `status: critical` on the Claude window now means: say so to the operator and spend
+  the remainder on judgment only — consults and verification, never typing.
+- Prior model is no longer referenced as an option anywhere in the live docs. Entries
+  below are historical record and are left intact.
+
 ## 3.9.2 — 2026-07-26 · False-outage fix (PATH) + `critical` status
 
 - **Root-caused a reported "gemini lane unavailable" that was not gemini.** `agy` and
