@@ -39,7 +39,7 @@ Lane capacity and concurrency — measured/observed 2026-07, marked as such; re-
 
 ### Dynamic routing from measured usage
 
-The static numbers above age. When the operator provides a usage collector, prefer *live* quota over the table. Run it once at session start and again before any large fan-out or when a lane misbehaves — it is one cheap shell call, not a per-task ritual:
+The static numbers above age. When the operator provides a usage collector, prefer *live* quota over the table. Run it at session start, **before *and after* any large fan-out** (a wide dispatch burns enough to invalidate the snapshot it was routed on — routing the next fan-out on pre-burn data is how you overshoot a cap), and whenever a lane misbehaves. It is one cheap shell call, not a per-task ritual:
 
 ```bash
 python3 ~/repos/llm_usage/collector.py --brief   # operator's path; JSON on stdout
@@ -51,12 +51,13 @@ How to act on it:
 
 - **`recommend: false` or `status: warn`** → stop sending that lane new bulk work; finish what's in flight and shift the queue elsewhere.
 - **`caps_before_reset: true`** → that lane runs out *before* its window resets; combined with `caps_in_h` and `burn_pct_per_h` it tells you how long you can keep spending. Treat it as the strongest shed-load signal in the payload.
-- **Highest `pct_left` among *active* lanes** → the natural sink for bulk and wide fan-outs (cross-check against the concurrency notes above: capacity and parallelism are different constraints).
+- **Pick the bulk sink by *time*, not percentage.** Among lanes that are both *active* and hold a *standing volume role* (today: grok and codex — a lane with unmeasured economics like gemini does **not** win bulk work by having an untouched quota), rank by **`caps_in_h` against `resets_in_h`**: time-to-cap at current burn versus time-to-refill. Hours are comparable across providers; percentages are not, because each lane's 100% is a different absolute size (grok ~990M/week vs codex ~157M/week — grok at 40% left still holds ~4× codex's 70%). Use `pct_left` only as a tiebreak, and break remaining ties toward the larger measured absolute quota. Cross-check the concurrency notes above: capacity and parallelism are different constraints.
 - **Architect side:** the Claude windows are separate — when the session's own model is in `warn`/`caps_before_reset` while the other Claude window has headroom, keep the session where it is but **route `fable-advisor` consults to the model with room** by passing an explicit model override on the Agent call (it beats the agent's `inherit` frontmatter). Consults are small; this is about not spending the last of a nearly-capped window on them. If *both* Claude windows are tight, push harder outward: bigger batches per lane spec, shorter architect output, fewer Claude-side subagents (Explore included — those bill the Claude window too; the CLI lanes never do).
 
 Traps — the payload is advisory, not an oracle:
 
 - **Never route on `best_lane` alone.** It ranks by free capacity, so a *cancelled or retired* subscription scores perfect (0% used, 100% left) and wins. Observed 2026-07-26: `best_lane: "kimi"` — a lane retired on 2026-07-18. Always intersect the collector's lanes with the fleet's actually-active lanes (grok, codex, gemini + the Claude windows); ignore rows for lanes this doctrine no longer runs.
+- **"Unused" is not "best" — the same trap has two faces.** A retired lane and a *brand-new, unmeasured* lane both show ~100% left. Verified 2026-07-26: ranking active lanes purely by `pct_left` promoted gemini (100% left, economics unmeasured) over grok Heavy for bulk. Free quota is a permission to spend, never on its own a reason to.
 - **Negative `resets_in_h` means stale data** (window already elapsed, nothing refreshed it) — treat that row as unknown, not as free capacity.
 - **`pct_left` is not throughput.** A lane with quota but poor concurrency won't clear a fan-out faster than a busier high-concurrency lane; apply the sizing rule from "Parallelism".
 - The collector's own `note` says provider-reported *or estimated*. Never let it override a hard failure signal from a lane's own report (`unavailable`, `timeout`, auth error) — live evidence beats projected quota.

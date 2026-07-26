@@ -19,6 +19,12 @@
   room via a per-invocation model override (it beats `inherit`); if both are tight,
   push volume outward — Claude-side subagents (Explore included) bill the Claude
   window, CLI lanes never do.
+- **Bulk sink is ranked by time-to-cap, not `pct_left`** (advisor consult caught this
+  before it shipped): percentages have incomparable bases — grok's ~990M/week at 40%
+  left still beats codex's ~157M/week at 70%, so percentage-ranking would flip bulk
+  onto the smaller lane, cap it, and oscillate. Rank on `caps_in_h` vs `resets_in_h`
+  (hours are comparable); `pct_left` is a tiebreak only. Also: re-run the collector
+  *after* wide fan-outs, not only before — a big dispatch invalidates its own snapshot.
 - **Documented the `best_lane` trap:** the collector ranks by free capacity, so a
   *cancelled* subscription scores perfect. Observed live: `best_lane: "kimi"` — a
   lane retired 2026-07-18. Never route on `best_lane` alone; intersect with the
