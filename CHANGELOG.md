@@ -1,5 +1,30 @@
 # Changelog — chiptuned/fable-advisor
 
+## 4.1.0 — 2026-08-01 · DeepSeek lane (OpenRouter) — elastic overflow
+
+- **New `deepseek-implementer` lane**: DeepSeek V4 Flash
+  (`deepseek/deepseek-v4-flash-0731`, 1M context, `tool_use`) via **OpenRouter**,
+  hosted by the **`kimi` CLI as a generic agentic runner**. This is *not* the retired
+  Moonshot/Kimi K3 model lane (retired 2026-07-18) — no Moonshot model or quota is
+  involved; only the CLI is reused as a host.
+- **Why codex could not host it**: codex 0.144.4 rejects `wire_api = "chat"`
+  ("no longer supported", use `responses`), and OpenRouter exposes only
+  `/api/v1/chat/completions` — no Responses API. Verified both ends before choosing a
+  host, rather than assuming.
+- **Role is elasticity, not savings.** $0.14 / 1M prompt and $0.28 / 1M completion,
+  pay-per-token and **uncapped** — about 2.5× grok's per-token subscription rate. It is
+  the only lane that keeps working when the owned subscriptions cap out. Route here on
+  overflow-beyond-quota or for a fourth independent family; **no standing bulk role**
+  while grok or codex have headroom.
+- **Verified today**: the `kimi` host runs headless and *edits files* (`-p` mode,
+  auto-approved tool calls, process-cwd discipline) — proven on a seeded bug with a
+  failing negative control first. **Still unproven**: the OpenRouter pairing itself,
+  which needs the operator's key; until the catalog import runs, the lane correctly
+  reports `STATUS: unavailable` rather than guessing an alias.
+- **Key handling**: the one-time import uses the `KIMI_REGISTRY_API_KEY` env fallback,
+  never `--api-key` on the command line (argv is visible to `ps` and shell history).
+  The lane never reads, echoes or logs the key.
+
 ## 4.0.0 — 2026-07-26 · Opus 5 is the architect and the advisor
 
 Operator decision from published benchmarks: Opus 5 leads on the axes this pattern
