@@ -7,7 +7,7 @@ tools: Bash, Read, Grep, Glob
 
 # Grok Implementer
 
-> **DEPRECATED — subscription cancelled 2026-08-01.** This lane has no standing role in
+> **DEPRECATED — subscription cancelled 2026-08-07.** This lane has no standing role in
 > the routing doctrine. It is kept only while the cancelled subscription still answers;
 > delete this file once it stops. Do not route here by default — the default implementer
 > is `deepseek-implementer`.
