@@ -337,24 +337,7 @@ def run_lane_harness(
 # Per-lane implementations (hardcoded; never driven by client argv)
 # ---------------------------------------------------------------------------
 
-def discover_deepseek_alias() -> str | None:
-    """
-    Parse `kimi provider list` and return the first model alias containing
-    'deepseek-v4-flash'. Returns None if OpenRouter / alias is missing.
-    """
-    if not which("kimi"):
-        return None
-    try:
-        r = run_argv(["kimi", "provider", "list"], timeout=PREFLIGHT_TIMEOUT_S)
-    except (subprocess.TimeoutExpired, OSError):
-        return None
-    text = (r.stdout or "") + "\n" + (r.stderr or "")
-    # Collect token-like aliases (path-ish or bare).
-    candidates = re.findall(r"[A-Za-z0-9_./:+-]*deepseek-v4-flash[A-Za-z0-9_./:+-]*", text)
-    for c in candidates:
-        if "deepseek-v4-flash" in c:
-            return c
-    return None
+
 
 
 def test_gemini() -> dict[str, Any]:
@@ -385,26 +368,28 @@ def test_gemini() -> dict[str, Any]:
 
 
 def test_deepseek() -> dict[str, Any]:
-    ver = version_of("kimi", ["kimi", "--version"])
-    if not which("kimi"):
+    ver = version_of("opencode", ["opencode", "--version"])
+    if not which("opencode"):
         r = base_result("deepseek")
         r["status"] = STATUS_UNAVAILABLE
-        r["message"] = "kimi CLI not found on PATH."
+        r["message"] = "opencode CLI not found on PATH."
         return r
 
-    alias = discover_deepseek_alias()
-    if not alias:
+    probe = run_argv(["opencode", "models", "openrouter"], timeout=PREFLIGHT_TIMEOUT_S)
+    if probe.returncode != 0 and "Provider not found" in (probe.stderr or ""):
         r = base_result("deepseek")
         r["status"] = STATUS_UNAVAILABLE
         r["cli_version"] = ver
-        r["message"] = (
-            "OpenRouter provider not imported — operator must run the one-time setup"
-        )
+        r["message"] = "OpenRouter provider not configured — set OPENROUTER_API_KEY or run `opencode providers login`"
         return r
 
     def invoke(absdir: str, task: str):
-        argv = ["kimi", "-p", task, "-m", alias]
-        return run_argv(argv, timeout=LANE_TIMEOUT_S, cwd=absdir)
+        argv = [
+            "opencode", "run", task,
+            "--model", "openrouter/deepseek/deepseek-v4-flash-0731",
+            "--auto", "--dir", absdir
+        ]
+        return run_argv(argv, timeout=LANE_TIMEOUT_S)
 
     return run_lane_harness("deepseek", invoke, ver)
 
@@ -486,8 +471,8 @@ LANE_META: dict[str, dict[str, str]] = {
     },
     "deepseek": {
         "name": "DeepSeek",
-        "producer": "kimi · deepseek-v4-flash (OpenRouter)",
-        "note": "Requires one-time OpenRouter provider import in kimi.",
+        "producer": "opencode · deepseek-v4-flash-0731 (OpenRouter)",
+        "note": "Requires one-time OpenRouter provider login in opencode.",
     },
     "codex": {
         "name": "Codex",
@@ -517,18 +502,19 @@ def preflight() -> dict[str, Any]:
         "note": LANE_META["gemini"]["note"] or ("agy not on PATH" if not which("agy") else "ok"),
     }
 
-    # deepseek / kimi
-    kimi_ok = bool(which("kimi"))
-    alias = discover_deepseek_alias() if kimi_ok else None
-    if not kimi_ok:
-        note = "kimi not on PATH"
-    elif not alias:
-        note = "OpenRouter provider not imported — operator must run the one-time setup"
+    # deepseek / opencode
+    opencode_ok = bool(which("opencode"))
+    if not opencode_ok:
+        note = "opencode not on PATH"
     else:
-        note = f"alias={alias}"
+        probe = run_argv(["opencode", "models", "openrouter"], timeout=PREFLIGHT_TIMEOUT_S)
+        if probe.returncode != 0 and "Provider not found" in (probe.stderr or ""):
+            note = "OpenRouter provider not configured — operator must run the one-time setup"
+        else:
+            note = "ok"
     lanes["deepseek"] = {
-        "installed": kimi_ok,
-        "version": version_of("kimi", ["kimi", "--version"]) if kimi_ok else None,
+        "installed": opencode_ok,
+        "version": version_of("opencode", ["opencode", "--version"]) if opencode_ok else None,
         "note": note,
     }
 
@@ -759,7 +745,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <script>
 const LANES = [
   { id: "gemini", name: "Gemini", producer: "agy · gemini-3.1-pro-high", deprecated: false },
-  { id: "deepseek", name: "DeepSeek", producer: "kimi · deepseek-v4-flash (OpenRouter)", deprecated: false },
+  { id: "deepseek", name: "DeepSeek", producer: "opencode · deepseek-v4-flash-0731 (OpenRouter)", deprecated: false },
   { id: "codex", name: "Codex", producer: "codex exec · gpt-5.6-sol (high)", deprecated: false },
   { id: "grok", name: "Grok", producer: "grok · grok-4.5", deprecated: true },
 ];

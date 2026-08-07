@@ -8,7 +8,7 @@ Claude Code lets every subagent run on a different model — and lets the sessio
 
 | Lane | Producer | Invocation | Route here when |
 |---|---|---|---|
-| **Default implementer** | **DeepSeek V4 Flash** (OpenRouter) | `deepseek-implementer` agent | Almost everything — pay-per-token and uncapped, hosted by the `kimi` CLI. The only lane without a wall |
+| **Default implementer** | **DeepSeek V4 Flash** (OpenRouter) | `deepseek-implementer` agent | Almost everything — pay-per-token and uncapped, hosted by the `opencode` CLI. The only lane without a wall |
 | Second family | Gemini 3.1 Pro (high) | `gemini-implementer` agent | Independent second diff, race partner, or fallback — via the `agy` CLI |
 | Advisory (non-Claude) | GPT-5.6 Sol (high reasoning) | `codex-advisor` agent | Design/plan/diff review, read-only — preferred over the Claude advisor whenever codex has quota |
 | Implementation (non-Claude) | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical second implementation, quota permitting |
@@ -44,18 +44,17 @@ Then start your session as the architect:
 
 - **Claude Code ≥ 2.1.170** with a subscription that includes Opus 5 (Pro, Max, Team, or Enterprise — all current consumer plans qualify).
 - The advisor is pinned to `model: opus`, so it stays Opus 5 even when consulted from a cheaper session. The caller can override the model per consult (see "Dynamic routing from measured usage" in the orchestration skill).
-- **DeepSeek lane (the default implementer):** needs the `kimi` CLI as host plus an OpenRouter provider. One-time setup — put your OpenRouter key in a dotenv or export it, then import the provider (the env fallback keeps the key out of `argv`, where `ps` and shell history would see it):
+- **DeepSeek lane (the default implementer):** needs the [opencode](https://opencode.ai) CLI as host (`npm install -g opencode-ai`) plus an OpenRouter credential. One-time setup — either export the key, or use opencode's interactive login so it never touches your shell history:
 
   ```
-  export KIMI_REGISTRY_API_KEY='<your OpenRouter key>'
-  kimi provider catalog add openrouter --default-model deepseek/deepseek-v4-flash-0731
+  export OPENROUTER_API_KEY='<your OpenRouter key>'    # or: opencode providers login
   ```
 
-  Until that import runs, the lane reports `STATUS: unavailable` rather than guessing.
+  Until a credential is configured, `opencode models openrouter` reports `Provider not found` and the lane returns `STATUS: unavailable` rather than guessing.
 - **Gemini lane:** needs the `agy` CLI (Google Antigravity) authenticated. `--add-dir <absolute root>` is mandatory — the CLI is sandboxed and ignores the process cwd.
 - **Codex lane (optional):** the `codex-implementer` agent needs the [OpenAI Codex CLI](https://github.com/openai/codex) installed and authenticated (`npm i -g @openai/codex`, then `codex login`). It invokes **GPT-5.6 Sol** as `gpt-5.6-sol` with `model_reasoning_effort=high`. GPT-5.6 access may be limited during preview; without model access, an installed/authenticated CLI, or successful authentication, the agent reports `STATUS: unavailable` and the other lanes remain unaffected.
 - Heads-up: if a pinned Claude model isn't available on your account, Claude Code silently falls back to your session model — the pattern degrades quietly rather than erroring. If results feel unremarkable, check your plan. (This quiet fallback applies only to Claude model pins — the external CLI lanes always fail loudly with a structured error.)
-- **`~/.local/bin` on PATH:** `agy`, `kimi` and `grok` install there, and a shell that doesn't source your profile won't find them — the classic false outage. Every lane preflight hardens the PATH before concluding a CLI is missing.
+- **`~/.local/bin` on PATH:** `agy` (and `grok`) install there, and a shell that doesn't source your profile won't find them — the classic false outage. Every lane preflight hardens the PATH before concluding a CLI is missing. (`opencode` and `codex` install into your npm bin instead.)
 - **Check the lanes yourself:** `python3 tools/lane_dashboard.py` serves a local dashboard (127.0.0.1 only) with one button per lane that runs a real seeded-bug test and shows the evidence.
 
 Model resolution order in Claude Code: `CLAUDE_CODE_SUBAGENT_MODEL` env var → per-invocation `model` parameter → agent frontmatter → session model.

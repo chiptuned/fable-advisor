@@ -1,5 +1,27 @@
 # Changelog — chiptuned/fable-advisor
 
+## 4.3.0 — 2026-08-07 · DeepSeek re-hosted on opencode (kimi dependency removed)
+
+The operator objected to the DeepSeek lane depending on the `kimi` CLI — the tooling of
+a vendor whose subscription was cancelled. Fair: that put a lapsing OAuth account
+underneath the fleet's default implementer.
+
+- **Host swapped to [opencode](https://opencode.ai) 1.18.15** (`npm install -g
+  opencode-ai`): `opencode run "<task>" --model openrouter/deepseek/deepseek-v4-flash-0731
+  --auto --dir <root>`. Native OpenRouter support, no provider-import step, no third-party
+  account. Credential via `OPENROUTER_API_KEY` or `opencode providers login` — never argv.
+- **`--dir` removes two classes of bug at once**: no `cd` discipline (kimi) and no
+  sandbox-ignores-cwd trap (agy). This host is simply better suited than either.
+- Why not codex or agy: codex requires `wire_api = "responses"` and OpenRouter is
+  chat-only; agy has no custom-provider support. Both re-verified before switching.
+- Dashboard's deepseek test re-pointed at opencode, including the not-configured
+  signature (`opencode models openrouter` → `Provider not found`) so it still reports
+  `unavailable` rather than `fail` when the credential is missing. Verified live.
+- **Honest status**: the host is installed and its CLI surface verified, but **nothing
+  has run end-to-end** — no OpenRouter credential is configured, so no DeepSeek token has
+  ever flowed. The lane doc previously overclaimed this; corrected. The delegated lane
+  caught the overclaim itself and refused to sign it off as complete.
+
 ## 4.2.0 — 2026-08-07 · DeepSeek becomes the default; grok/kimi retired
 
 Fleet reshaped after the operator cancelled the Grok and Kimi subscriptions and
