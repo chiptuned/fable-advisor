@@ -1,5 +1,23 @@
 # Changelog — chiptuned/fable-advisor
 
+## 4.3.1 — 2026-08-08 · DeepSeek lane: mandatory `< /dev/null` (silent zero-output bug)
+
+- **`opencode run` returns ZERO bytes when it inherits an open stdin pipe** — no error,
+  no output, no model call; it looks like a hung bootstrap and dies on the wall clock.
+  A subagent's shell hands it exactly that kind of stdin, so the lane failed 3/3 times
+  as a spawned agent while the identical command passed in a terminal and in the
+  dashboard (both of which close stdin). Diagnosed by A/B: `sleep 300 | opencode run …`
+  → empty; `opencode run … < /dev/null` → works in seconds.
+- Fix: `< /dev/null` is now mandatory in the lane's invocation, with the reasoning
+  inline so nobody "cleans it up" later. The grok lane already had it; deepseek did not.
+- The lane's own doctrine held up: it reported `timeout` with zero-byte evidence, kept
+  the artefacts, and explicitly refused to blame DeepSeek or to implement the task
+  itself as a fallback. The bug was in the invocation, not the model.
+- **DeepSeek verified working end-to-end** on this host: dashboard test `pass` in 12.8s
+  (fastest lane measured — gemini 23.7s, codex 19.8s), and a harder edge-case task
+  (slugify/truncate, 6 assertions incl. empty-result and exact-length semantics) solved
+  correctly on the first attempt with a clean regex implementation.
+
 ## 4.3.0 — 2026-08-07 · DeepSeek re-hosted on opencode (kimi dependency removed)
 
 The operator objected to the DeepSeek lane depending on the `kimi` CLI — the tooling of

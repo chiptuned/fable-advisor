@@ -110,11 +110,16 @@ run_capped() {  # run_capped <seconds> <cmd...>   (stdin/redirects pass through)
 # tool would kill bash and re-orphan the child. Set the tool timeout to 600000 ms.
 RAW=$(mktemp -t deepseek-raw.XXXXXX)
 ERR=$(mktemp -t deepseek-err.XXXXXX)
+# ⚠ `< /dev/null` is NOT optional. Verified 2026-08-08: given a stdin that is an open
+# pipe (which is what a subagent's shell hands you), `opencode run` produces ZERO bytes
+# on both streams and never reaches the model — it looks exactly like a hung bootstrap.
+# The same command with stdin closed works in seconds. Two lane runs were lost to this
+# before it was diagnosed; direct terminal tests never reproduce it.
 run_capped 540 opencode run "$(cat "$SPEC")" \
   --model openrouter/deepseek/deepseek-v4-flash-0731 \
   --auto \
   --dir "<absolute working root>" \
-  > "$RAW" 2> "$ERR"
+  < /dev/null > "$RAW" 2> "$ERR"
 rc=$?
 [ "$rc" = 124 ] && echo "STATUS: timeout — opencode/DeepSeek exceeded the 540s wall clock"
 # If stdout/stream is empty and rc != 0, surface stderr:
@@ -143,6 +148,7 @@ Open questions (do not invent answers):
 
 Environment traps:
 
+- **Zero bytes of output = check `< /dev/null` first.** That is this lane's signature failure (see the invocation block): an inherited open stdin silently produces an empty run. Only after confirming the redirect is present should you treat zero bytes as a wider harness bug.
 - **Zero bytes of output = harness bug, not a DeepSeek finding.** Fix the rig before concluding anything; if two consecutive runs produce nothing, stop and report the harness state (and `"$ERR"`) instead of iterating. Keep `"$SPEC"`, `"$RAW"`, `"$ERR"`, and the working tree on failure — never delete the evidence.
 - **Record `opencode --version` (from preflight) and the exact `--model` string used in every report** so failures attribute to a known host build and a known model slug.
 - **Never put `OPENROUTER_API_KEY` (or any key) in argv, logs, or the report.** If auth fails, quote OpenRouter's error message only — never the key material.
