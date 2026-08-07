@@ -1011,8 +1011,24 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    httpd = ThreadingHTTPServer((BIND_HOST, args.port), Handler)
-    url = f"http://{BIND_HOST}:{args.port}/"
+    # The default port is often taken by some other local service. Rather than dying
+    # with EADDRINUSE, walk forward to the next free port and say which one we took.
+    httpd = None
+    for candidate in range(args.port, args.port + 20):
+        try:
+            httpd = ThreadingHTTPServer((BIND_HOST, candidate), Handler)
+            break
+        except OSError:
+            print(f"port {candidate} busy, trying {candidate + 1}…", flush=True)
+    if httpd is None:
+        print(
+            f"No free port in {args.port}-{args.port + 19}. "
+            f"Pass an explicit free one with --port.",
+            flush=True,
+        )
+        return 1
+    port = httpd.server_address[1]
+    url = f"http://{BIND_HOST}:{port}/"
     print(f"Lane health dashboard listening on {url}", flush=True)
     print("Fixed lanes: " + ", ".join(sorted(LANE_TESTS)), flush=True)
     print("Ctrl-C to stop.", flush=True)
