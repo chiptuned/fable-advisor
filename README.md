@@ -1,6 +1,6 @@
 # Fable Advisor — chiptuned fork
 
-> **This is [chiptuned](https://github.com/chiptuned)'s throughput-first fork of [DannyMac180/fable-advisor](https://github.com/DannyMac180/fable-advisor).** Differences from upstream: all open upstream PRs merged (#2 #4 #5), routing doctrine retuned to prioritize wall-clock throughput and the architect's quota (parallel dispatch, early hand-off, anti-inline-edit batching, measured lane concurrency), and no cursor/Smithers lanes. A Kimi K3 trial lane ran 2026-07 and was retired on capacity economics (see CHANGELOG.md). Install: `claude plugin marketplace add chiptuned/fable-advisor`.
+> **This is [chiptuned](https://github.com/chiptuned)'s throughput-first fork of [DannyMac180/fable-advisor](https://github.com/DannyMac180/fable-advisor).** Differences from upstream: all open upstream PRs merged (#2 #4 #5), routing doctrine retuned to prioritize wall-clock throughput and the architect's quota (parallel dispatch, early hand-off, anti-inline-edit batching, measured lane concurrency), and no cursor/Smithers lanes. Grok and Kimi lanes were retired when those subscriptions were cancelled (see CHANGELOG.md); DeepSeek via OpenRouter is now the default implementer. Install: `claude plugin marketplace add chiptuned/fable-advisor`.
 
 **The smartest model runs the show. Cheaper models do the typing.**
 
@@ -8,13 +8,13 @@ Claude Code lets every subagent run on a different model — and lets the sessio
 
 | Lane | Producer | Invocation | Route here when |
 |---|---|---|---|
-| Routine | **Grok 4.5** | `grok-implementer` agent (default) | The spec fully determines the outcome — Grok does the typing via the [Grok CLI](https://x.ai/cli); highest measured concurrency, the fan-out workhorse |
-| Cross-vendor / overflow | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical second implementation, and bulk overflow when grok is saturated — cheapest owned capacity in the fleet |
-| Third family (Google) | Gemini 3.1 Pro (high) | `gemini-implementer` agent | Google-family independent diff / third-way race via the `agy` CLI; economics unmeasured, no standing volume role yet |
-| Elastic overflow | DeepSeek V4 Flash (OpenRouter) | `deepseek-implementer` agent | When the owned subscription lanes are capped — pay-per-token, uncapped, hosted by the `kimi` CLI |
-| Judgment | **Opus 5** | `fable-advisor` agent | Commitment boundaries — pinned to Opus 5, overridable per consult — see below |
+| **Default implementer** | **DeepSeek V4 Flash** (OpenRouter) | `deepseek-implementer` agent | Almost everything — pay-per-token and uncapped, hosted by the `kimi` CLI. The only lane without a wall |
+| Second family | Gemini 3.1 Pro (high) | `gemini-implementer` agent | Independent second diff, race partner, or fallback — via the `agy` CLI |
+| Advisory (non-Claude) | GPT-5.6 Sol (high reasoning) | `codex-advisor` agent | Design/plan/diff review, read-only — preferred over the Claude advisor whenever codex has quota |
+| Implementation (non-Claude) | GPT-5.6 Sol (high reasoning) | `codex-implementer` agent | Correctness-critical second implementation, quota permitting |
+| Judgment (final) | **Opus 5** | `fable-advisor` agent | Commitment boundaries — the decision-maker of last resort |
 
-Tokens route by volume: the expensive model emits the fewest tokens (judgment and specs), cheap lanes emit the most (code). Implementation mechanics are ~90% of a session's tokens and Grok 4.5 handles them at near-parity — so this runs far cheaper than Opus-for-everything, and every implementation comes from a *different model family* than the architect that reviews it: cross-vendor review is built into the routing, not bolted on. For high-stakes work, race `grok-implementer` and `codex-implementer` on the same spec and let the architect pick the stronger diff.
+Tokens route by volume: the expensive model emits the fewest tokens (judgment and specs), cheap lanes emit the most (code). Implementation mechanics are ~90% of a session's tokens and the external lanes handle them at near-parity — so this runs far cheaper than Opus-for-everything, and every implementation comes from a *different model family* than the architect that reviews it: cross-vendor review is built into the routing, not bolted on. For high-stakes work, race `deepseek-implementer` and `gemini-implementer` on the same spec and let the architect pick the stronger diff.
 
 The plugin ships the **orchestration skill** — the routing doctrine that teaches the session when to use each lane, the cost discipline that keeps the expensive model's own token volume minimal (emit judgment not volume, keep context lean, reason once then hand off), the five-part spec contract that makes context-free delegation safe, and the verification rules that keep cheap lanes honest.
 
@@ -44,9 +44,19 @@ Then start your session as the architect:
 
 - **Claude Code ≥ 2.1.170** with a subscription that includes Opus 5 (Pro, Max, Team, or Enterprise — all current consumer plans qualify).
 - The advisor is pinned to `model: opus`, so it stays Opus 5 even when consulted from a cheaper session. The caller can override the model per consult (see "Dynamic routing from measured usage" in the orchestration skill).
-- **Grok lane (the default implementer):** the `grok-implementer` agent needs the [xAI Grok CLI](https://x.ai/cli) installed and authenticated (install from [x.ai/cli](https://x.ai/cli), then `grok login`). It drives **Grok 4.5** headlessly (`grok --prompt-file … -m grok-4.5`). Without it the agent reports `STATUS: unavailable` — it never silently falls back to a Claude model.
+- **DeepSeek lane (the default implementer):** needs the `kimi` CLI as host plus an OpenRouter provider. One-time setup — put your OpenRouter key in a dotenv or export it, then import the provider (the env fallback keeps the key out of `argv`, where `ps` and shell history would see it):
+
+  ```
+  export KIMI_REGISTRY_API_KEY='<your OpenRouter key>'
+  kimi provider catalog add openrouter --default-model deepseek/deepseek-v4-flash-0731
+  ```
+
+  Until that import runs, the lane reports `STATUS: unavailable` rather than guessing.
+- **Gemini lane:** needs the `agy` CLI (Google Antigravity) authenticated. `--add-dir <absolute root>` is mandatory — the CLI is sandboxed and ignores the process cwd.
 - **Codex lane (optional):** the `codex-implementer` agent needs the [OpenAI Codex CLI](https://github.com/openai/codex) installed and authenticated (`npm i -g @openai/codex`, then `codex login`). It invokes **GPT-5.6 Sol** as `gpt-5.6-sol` with `model_reasoning_effort=high`. GPT-5.6 access may be limited during preview; without model access, an installed/authenticated CLI, or successful authentication, the agent reports `STATUS: unavailable` and the other lanes remain unaffected.
-- Heads-up: if a pinned Claude model isn't available on your account, Claude Code silently falls back to your session model — the pattern degrades quietly rather than erroring. If results feel unremarkable, check your plan. (This quiet fallback applies only to Claude model pins — the grok and codex lanes always fail loudly with a structured error.)
+- Heads-up: if a pinned Claude model isn't available on your account, Claude Code silently falls back to your session model — the pattern degrades quietly rather than erroring. If results feel unremarkable, check your plan. (This quiet fallback applies only to Claude model pins — the external CLI lanes always fail loudly with a structured error.)
+- **`~/.local/bin` on PATH:** `agy`, `kimi` and `grok` install there, and a shell that doesn't source your profile won't find them — the classic false outage. Every lane preflight hardens the PATH before concluding a CLI is missing.
+- **Check the lanes yourself:** `python3 tools/lane_dashboard.py` serves a local dashboard (127.0.0.1 only) with one button per lane that runs a real seeded-bug test and shows the evidence.
 
 Model resolution order in Claude Code: `CLAUDE_CODE_SUBAGENT_MODEL` env var → per-invocation `model` parameter → agent frontmatter → session model.
 
@@ -59,7 +69,7 @@ Add rate limiting to our public API. Design it, delegate the
 implementation, and verify the evidence before you call it done.
 ```
 
-The architect writes the spec, picks the lane (rate limiting touches concurrency — a good case for racing `grok-implementer` against `codex-implementer` and picking the stronger diff), reads the diff and verification evidence when the report comes back, and only then reports done.
+The architect writes the spec, picks the lane (rate limiting touches concurrency — a good case for racing `deepseek-implementer` against `gemini-implementer` and picking the stronger diff), reads the diff and verification evidence when the report comes back, and only then reports done.
 
 To make the doctrine always-on, add one line to your project's `CLAUDE.md`:
 

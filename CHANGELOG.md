@@ -1,5 +1,33 @@
 # Changelog — chiptuned/fable-advisor
 
+## 4.2.0 — 2026-08-01 · DeepSeek becomes the default; grok/kimi retired
+
+Fleet reshaped after the operator cancelled the Grok and Kimi subscriptions and
+downgraded the Claude plan. Measured the same day: codex **97% consumed (critical)**,
+Claude window 24% consumed (~3.1%/h), gemini 0%, grok 4% (cancelled, lapsing).
+
+- **DeepSeek V4 Flash is the default implementer.** The reason is structural, not
+  price: every other lane is subscription-metered and has a wall; DeepSeek is
+  pay-per-token and only has a bill. Metered lanes are now the reserve, not the default.
+- **New `codex-advisor` lane** (read-only, GPT-5.6 Sol high, `--sandbox read-only`):
+  design/plan/diff review that would otherwise bill the Claude window. Doctrine prefers
+  it over the Claude advisor **whenever codex has quota** — which today it does not.
+- **`fable-advisor` (Opus 5) stays the final judgment lane** at commitment boundaries.
+- **Grok and Kimi retired as model lanes.** `agents/grok-implementer.md` is kept only
+  while the cancelled subscription still answers; delete it once it stops. The `kimi`
+  CLI survives purely as the *host* for the DeepSeek lane — no Moonshot model or quota.
+- **Gemini 3.6 Pro watch**: Google is expected to announce it imminently. When it
+  lands, check `agy models` for the slug and re-measure before promoting — a newer slug
+  is a hypothesis, not an upgrade.
+- **New `tools/lane_dashboard.py`**: a local (127.0.0.1-only, stdlib-only) web
+  dashboard with one button per lane that runs a real end-to-end test — seeded bug,
+  negative control checked first, independent re-verification — and distinguishes
+  "broken" from "not configured / out of quota". Built because reading a report is not
+  the same as watching it work.
+- Obsolete grok-Heavy paragraphs (the `--best-of-n` quality evaluation, the ×9
+  concurrency sizing) removed; parallelism guidance now keys off which lane can absorb
+  a fan-out rather than a cancelled subscription's concurrency.
+
 ## 4.1.0 — 2026-08-01 · DeepSeek lane (OpenRouter) — elastic overflow
 
 - **New `deepseek-implementer` lane**: DeepSeek V4 Flash
